@@ -101,7 +101,7 @@ class CarPosterGenerator:
         return Image.fromarray(np.clip(full_img, 0, 255).astype(np.uint8))
 
     def generate_background_image(self, image, mask, edges):
-        control_image = self.make_inpaint_condition(image, mask,edges)
+        control_image = self.make_inpaint_condition(image, mask, edges)
         prompt = self.generate_prompt()
         generator = torch.Generator(device="cuda").manual_seed(1234)
 
@@ -120,23 +120,64 @@ class CarPosterGenerator:
         res_image = self.add_fg(res_image, image, mask)
         return res_image
 
-    def load_image(self, file_dir):
+    def load_image(self, file_dir, image_w_ratio=0.9):
         mask_image = Image.open(os.path.join(file_dir, "mask.png"))
         mask_image = Image.fromarray(255 - np.array(mask_image))
         image = Image.open(os.path.join(file_dir, "image.png"))
         text_image = Image.open(os.path.join(file_dir, "text.png"))
         w, h = image.size
-        image = image.resize((self.model_input_w, int(h / w * self.model_input_w)))
-        mask_image = mask_image.resize((self.model_input_w, int(h / w * self.model_input_w)))
+        resize_w = int(self.model_input_w * image_w_ratio)
+        image = image.resize((resize_w, int(h / w * resize_w)))
+        mask_image = mask_image.resize((resize_w, int(h / w * resize_w)))
         pad_h = self.model_input_h - mask_image.size[1]
-        image = ImageOps.expand(image, border=(0, pad_h, 0, 0), fill='white')
-        mask_image = ImageOps.expand(mask_image, border=(0, pad_h, 0, 0), fill="white")
+        pad_w1 = (self.model_input_w - resize_w) // 2
+        pad_w2 = self.model_input_w - resize_w - pad_w1
+        image = ImageOps.expand(image, border=(pad_w1, pad_h, pad_w2, 0), fill='white')
+        mask_image = ImageOps.expand(mask_image, border=(pad_w1, pad_h, pad_w2, 0), fill="white")
         w, h = text_image.size
         text_image = text_image.resize((self.model_input_w, int(h / w * self.model_input_w)))
-        text_image = text_image.crop([0, 0, self.model_input_w, self.model_input_h])
-        gray_image = cv2.cvtColor(np.array(text_image), cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray_image, (5, 5), 0)
 
-        # 使用 Canny 进行边缘检测
-        edges = cv2.Canny(blurred, 50, 150)
-        return image, mask_image, edges
+        text_image = text_image.crop([0, 150, self.model_input_w, 150+self.model_input_h])
+
+        text_image = np.array(text_image)
+        text_rect_image = self.get_text_image_region(text_image[..., 3])
+        text_mask = Image.fromarray(text_image[..., 3])
+        text_image = Image.fromarray(text_image[..., :3])
+
+        return image, mask_image, text_image, text_mask, text_rect_image
+
+    @staticmethod
+    def get_text_image_region(text_mask):
+
+        # 应用阈值以便识别字体区域
+        _, thresh = cv2.threshold(text_mask, 127, 255, cv2.THRESH_BINARY_INV)
+
+        # 腐蚀和膨胀操作
+        kernel = np.ones((15, 60), np.uint8)
+        eroded = cv2.erode(thresh, kernel, iterations=1)
+        # dilated = cv2.dilate(eroded, kernel, iterations=2)
+
+        # 查找轮廓
+        contours, _ = cv2.findContours(255 - eroded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # 获取所有轮廓的四边形区域
+        text_regions = []
+        for contour in contours:
+            # 使用多边形逼近将轮廓转换为四边形
+            epsilon = 0.02 * cv2.arcLength(contour, True)
+            approx = cv2.approxPolyDP(contour, epsilon, True)
+
+            if len(approx) == 4:
+                # 如果逼近结果是四边形
+                text_regions.append(approx)
+            else:
+                # 否则，计算最小外接矩形
+                rect = cv2.minAreaRect(contour)
+                box = cv2.boxPoints(rect)
+                box = np.int0(box)
+                text_regions.append(box)
+        edge_image = np.zeros_like(text_mask, dtype=np.uint8)
+        for region in text_regions:
+            cv2.drawContours(edge_image, [region], -1, (255), 4)
+        # 在原图上绘制四边形区域
+        return edge_image
