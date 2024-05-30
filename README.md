@@ -3,7 +3,7 @@
 
 # car poster
     2024-05-27 start 
-    done at 2024-05-28(复杂字体变得可控比较难，暂时放弃)
-    原始图片 ![avatar](./damo/origin.jpg)
-    结果图片 ![avatar](./damo/sd.jpg)
+    doing 
+![原始图片](/damo/origin.jpg)
+![生成图片](/damo/sd.jpg)
 # controlnet train
