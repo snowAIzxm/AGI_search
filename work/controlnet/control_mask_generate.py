@@ -90,15 +90,15 @@ class ControlImageGenerator:
     @staticmethod
     def make_inpaint_condition(car_image, edges_image):
         init_image = np.array(car_image.convert("RGBA")).astype(np.float32) / 255.0
-        mask_image = 1.0-init_image[..., 3]
+        mask_image = 1.0 - init_image[..., 3]
         init_image = init_image[..., :3]
         init_image[mask_image > 0.5] = -1.0  # set as masked pixel
 
         zero_image = (edges_image > 0).astype(np.float16)[:, :, np.newaxis]
         zero_image = np.concatenate([zero_image, zero_image, zero_image], axis=2)
         new_zero_image = np.zeros((init_image.shape[0] + zero_image.shape[0], zero_image.shape[1], 3))
-        new_zero_image[:zero_image.shape[0]]=zero_image
-        new_zero_image[zero_image.shape[0]:]=init_image
+        new_zero_image[:zero_image.shape[0]] = zero_image
+        new_zero_image[zero_image.shape[0]:] = init_image
         init_image = np.expand_dims(new_zero_image, 0).transpose(0, 3, 1, 2)
         init_image = torch.from_numpy(init_image)
         return init_image
@@ -109,6 +109,7 @@ class ControlImageGenerator:
         text_image = self.process_text_image(text_image)
         text_h = text_image.size[1]
         edge_image = self.get_text_image_region(np.array(text_image)[..., 3])
+        control_image = self.make_inpaint_condition(car_image, edge_image)
 
 
 self = ControlImageGenerator()
