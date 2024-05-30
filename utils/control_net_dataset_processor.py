@@ -8,4 +8,5 @@ class ControlDatasetProcess:
         self.image_path_score_dict = image_path_score_dict
         self.image_path_mask_path_dict = image_path_mask_path_dict
 
-    def generate_dataset(self,):
+    def generate_dataset(self, ):
+        pass

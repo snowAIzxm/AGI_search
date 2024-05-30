@@ -39,7 +39,7 @@ class ControlImageGenerator:
         pad_w1 = int(w / 0.8 * 0.1)
 
         new_image = ImageOps.expand(new_image, border=(pad_w1, pad_w1, pad_w1, pad_w1), fill=(0, 0, 0, 0))
-
+        w, h = new_image.size
         new_image = new_image.resize((self.model_input_w, int(h / w * self.model_input_w)))
         return new_image
 
@@ -51,6 +51,14 @@ class ControlImageGenerator:
         w, h = new_image.size
         new_image = new_image.resize((self.model_input_w, int(h / w * self.model_input_w),))
         return new_image
+
+    @staticmethod
+    def add_fg(full_img, fg_img, mask_img):
+        full_img = np.array(full_img).astype(np.float32)
+        fg_img = np.array(fg_img).astype(np.float32)
+        mask_img = np.array(mask_img).astype(np.float32) / 255.
+        full_img = full_img * mask_img[:, :, np.newaxis] + fg_img * (1 - mask_img[:, :, np.newaxis])
+        return Image.fromarray(np.clip(full_img, 0, 255).astype(np.uint8))
 
     def get_text_image_region(self, text_mask):
 
@@ -95,6 +103,9 @@ class ControlImageGenerator:
         init_image[mask_image > 0.5] = -1.0  # set as masked pixel
 
         zero_image = (edges_image > 0).astype(np.float16)[:, :, np.newaxis]
+        zero_image[edges_image > 0.5] = 1.0
+        zero_image[edges_image < 0.5] = -1.0
+
         zero_image = np.concatenate([zero_image, zero_image, zero_image], axis=2)
         new_zero_image = np.zeros((init_image.shape[0] + zero_image.shape[0], zero_image.shape[1], 3))
         new_zero_image[:zero_image.shape[0]] = zero_image
@@ -110,6 +121,8 @@ class ControlImageGenerator:
         text_h = text_image.size[1]
         edge_image = self.get_text_image_region(np.array(text_image)[..., 3])
         control_image = self.make_inpaint_condition(car_image, edge_image)
+
+        return control_image, car_h, text_h, car_image, text_image
 
 
 self = ControlImageGenerator()
