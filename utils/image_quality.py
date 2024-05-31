@@ -14,7 +14,7 @@ class ImageQualityCalculator:
         self.device = "cuda"
         self.model = pipeline(
             Tasks.image_quality_assessment_mos,
-            'damo/cv_resnet_image-quality-assessment-mos_youtubeUGC', device=self.device)
+            'demo/cv_resnet_image-quality-assessment-mos_youtubeUGC', device=self.device)
         self.batch_size = 16
         self.init_model()
 

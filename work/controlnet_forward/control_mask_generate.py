@@ -125,4 +125,4 @@ class ControlImageGenerator:
         return control_image, car_h, text_h, car_image, text_image
 
 
-self = ControlImageGenerator()
+
