@@ -9,9 +9,11 @@ from work.controlnet_forward.model import pipe
 from work.controlnet_forward.prompt_generator import generate_ind_prompt, negative_prompt
 
 control_image_generator = ControlImageGenerator()
+
+
 # 主函数，文件内容参考 demo/controlnet_forward_data 里面的文件
 
-def process_clue_dir_image(clue_dir):
+def process_clue_dir_image(clue_dir, prompt_ind):
     car_image = Image.open(os.path.join(clue_dir, "image.png"))
     car_mask = Image.open(os.path.join(clue_dir, "mask.png"))
     text_image = Image.open(os.path.join(clue_dir, "text.png"))
@@ -24,7 +26,7 @@ def process_clue_dir_image(clue_dir):
     text_h = text_image.size[1]
     edge_image = control_image_generator.get_text_image_region(np.array(text_image)[..., 3])
     control_image = control_image_generator.make_inpaint_condition(car_image, edge_image)
-    prompt = generate_ind_prompt(None)
+    prompt = generate_ind_prompt(prompt_ind)
     generator = torch.Generator(device="cuda").manual_seed(1234)
     res_image = pipe(
         prompt,
@@ -37,7 +39,6 @@ def process_clue_dir_image(clue_dir):
         controlnet_conditioning_scale=0.5,
         generator=generator,
     ).images[0]
-
     text_mask = Image.fromarray(np.array(text_image)[..., 3])
     res_image.paste(text_image, mask=text_mask)
     car_mask = Image.fromarray(np.array(car_image)[..., 3])

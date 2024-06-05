@@ -12,6 +12,7 @@ background_title_list = [
     "Subtle patterned wallpaper",  # 低调图案壁纸
     "Light-colored wooden wall",  # 浅色木墙
     "Smooth plaster wall",  # 光滑灰泥墙
+
 ]
 negative_prompt = "cartoon,Easy Negative,worst quality,low quality,normal quality,lowers,monochrome,grayscales,skin spots,acnes,skin blemishes,age spot,6 more fingers on one hand,deformity,bad legs,error legs,bad feet,malformed limbs,extra limbs,ugly,poorly drawn hands,poorly drawn feet.poorly drawn face,text,mutilated,extra fingers,mutated hands,mutation,bad anatomy,cloned face,disfigured,fused fingers"
 

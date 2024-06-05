@@ -43,11 +43,11 @@ class ControlImageGenerator:
         new_image = new_image.resize((self.model_input_w, int(h / w * self.model_input_w)))
         return new_image
 
-    def process_text_image(self, text_image):
+    def process_text_image(self, text_image,down_ratio=0.1):
         h, w = text_image.shape[:2]
         start_h, end_h, start_w, end_w = self.get_car_mask_start_and_end_ratio(text_image[..., 3])
         new_image = Image.fromarray(text_image)
-        new_image = new_image.crop((0, int(start_h - w * self.text_pad_ratio), w, int(end_h + w * self.text_pad_ratio)))
+        new_image = new_image.crop((0, int(start_h - w * self.text_pad_ratio), w, int(end_h + w * down_ratio)))
         w, h = new_image.size
         new_image = new_image.resize((self.model_input_w, int(h / w * self.model_input_w),))
         return new_image
