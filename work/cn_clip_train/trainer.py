@@ -1,5 +1,6 @@
 import os.path
 
+import torch
 import torch.backends.cudnn as cudnn
 
 from work.cn_clip_train.dataset import get_dataset
@@ -26,7 +27,7 @@ cudnn.benchmark = True
 cudnn.deterministic = False
 
 model, model_info = load_model(vision_model_config_file, text_model_config_file, resume_path)
-
+model = model.cuda()
 # freeze vision
 for k, v in model.visual.named_parameters():
     v.requires_grad = False
@@ -39,3 +40,30 @@ train_data_info = get_dataset(train_path, model_info["image_resolution"], batch_
                               epoch_id=0)
 val_data_info = get_dataset(val_path, model_info["image_resolution"], batch_size, False,
                             max_txt_length=max_txt_length, epoch_id=0)
+
+dataloader = train_data_info.dataloader
+dataloader_size = len(dataloader)
+for step in range(dataloader_size // accum_freq):
+    data_iter = iter(dataloader)
+
+    scheduler(step)
+    optimizer.zero_grad()
+    image_features_list = []
+    text_features_list = []
+    logit_scale_list = []
+
+    for _ in range(accum_freq):
+        batch = next(data_iter)
+        images, texts, eos_indices = batch
+
+        images = images.cuda(non_blocking=True)
+        texts = texts.cuda(non_blocking=True)
+        eos_indices = eos_indices.cuda(non_blocking=True)
+
+        image_features, text_features, logit_scale = model(images, texts, mask_ratio)
+        image_features_list.append(image_features)
+        text_features_list.append(text_features)
+        logit_scale_list.append(logit_scale)
+    image_feature = torch.cat(image_features_list, dim=0)
+    text_features = torch.cat(text_features_list, dim=0)
+    logit_scale = torch.cat(logit_scale_list, dim=0)

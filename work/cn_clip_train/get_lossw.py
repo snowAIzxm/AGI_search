@@ -6,8 +6,8 @@ from cn_clip.training.scheduler import cosine_lr
 from torch import optim
 
 
-def get_loss(model, images, texts, loss_img, loss_txt, mask_ratio):
-    image_features, text_features, logit_scale = model(images, texts, mask_ratio)
+def get_loss(image_features, text_features, logit_scale, loss_img, loss_txt):
+
 
     logit_scale = logit_scale.mean()
     logits_per_image = logit_scale * image_features @ text_features.t()
