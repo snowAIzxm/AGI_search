@@ -2,9 +2,10 @@ import os.path
 
 import torch
 import torch.backends.cudnn as cudnn
+from torch import nn
 
 from work.cn_clip_train.dataset import get_dataset
-from work.cn_clip_train.get_lossw import load_model, generate_scheduler_and_optimizer
+from work.cn_clip_train.get_lossw import load_model, generate_scheduler_and_optimizer, get_loss
 
 dataset_path = ""
 vision_model_config_file = f"./Chinese-CLIP/cn_clip/clip/model_configs/ViT-B-16.json"
@@ -16,12 +17,12 @@ val_path = os.path.join(dataset_path, 'valid')
 wd = 0.001
 lr = 5e-5
 warmup = 100
-total_steps = 10000
-batch_size = 128
+batch_size = 64
 max_txt_length = 52
 mask_ratio = 0.5
 accum_freq = 8
 epoch = 3
+total_steps = 10000
 
 cudnn.benchmark = True
 cudnn.deterministic = False
@@ -40,6 +41,11 @@ train_data_info = get_dataset(train_path, model_info["image_resolution"], batch_
                               epoch_id=0)
 val_data_info = get_dataset(val_path, model_info["image_resolution"], batch_size, False,
                             max_txt_length=max_txt_length, epoch_id=0)
+loss_img = nn.CrossEntropyLoss()
+loss_txt = nn.CrossEntropyLoss()
+
+loss_img = loss_img.cuda()
+loss_txt = loss_txt.cuda()
 
 dataloader = train_data_info.dataloader
 dataloader_size = len(dataloader)
@@ -66,4 +72,8 @@ for step in range(dataloader_size // accum_freq):
         logit_scale_list.append(logit_scale)
     image_feature = torch.cat(image_features_list, dim=0)
     text_features = torch.cat(text_features_list, dim=0)
-    logit_scale = torch.cat(logit_scale_list, dim=0)
+    logit_scale = logit_scale_list.mean()
+    loss, acc = get_loss(image_feature, text_features, logit_scale, loss_img, loss_txt)
+    loss.backward()
+    optimizer.step()
+    print(f"step: {step}, loss: {loss.item()}, acc: {acc}")
