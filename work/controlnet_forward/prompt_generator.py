@@ -22,4 +22,4 @@ def generate_ind_prompt(ind):
         value = random.choice(background_title_list)
     else:
         value = background_title_list[ind % (len(background_title_list))]
-    return f"a car, high resolution,street level view,studio warm light,{value},4k"
+    return f"a car, high resolution,street level view,warm light,{value},4k"
