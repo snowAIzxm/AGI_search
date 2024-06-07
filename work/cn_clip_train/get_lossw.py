@@ -66,37 +66,3 @@ def generate_scheduler_and_optimizer(model, lr, warmup, total_steps, wd):
     return scheduler, optimizer
 
 
-def train_model_dataloader(dataloader, model,
-                           scheduler, optimizer,
-                           start_step, accum_freq, mask_ratio,
-                           loss_img, loss_txt, writer):
-    amount = len(dataloader) // accum_freq
-    data_iter = iter(dataloader)
-    for step in tqdm(range(start_step, start_step + amount)):
-        scheduler(step)
-        optimizer.zero_grad()
-        image_features_list = []
-        text_features_list = []
-        logit_scale_list = []
-
-        for _ in range(accum_freq):
-            batch = next(data_iter)
-            images, texts, eos_indices = batch
-
-            images = images.cuda(non_blocking=True)
-            texts = texts.cuda(non_blocking=True)
-            eos_indices = eos_indices.cuda(non_blocking=True)
-            with autocast():
-                image_features, text_features, logit_scale = model(images, texts, mask_ratio)
-                image_features_list.append(image_features)
-                text_features_list.append(text_features)
-                logit_scale_list.append(logit_scale)
-        image_feature = torch.cat(image_features_list, dim=0)
-        text_features = torch.cat(text_features_list, dim=0)
-        logit_scale = logit_scale_list[0]
-        loss, acc = get_loss(image_feature, text_features, logit_scale, loss_img, loss_txt)
-        loss.backward()
-        optimizer.step()
-        writer.add_scalar('Loss/train', loss.item(), step)
-        writer.add_scalar('Accuracy/train_i2t', acc["i2t"], step)
-        writer.add_scalar('Accuracy/train_t2i', acc["t2i"], step)
