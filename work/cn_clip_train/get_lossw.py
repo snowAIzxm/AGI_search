@@ -25,7 +25,7 @@ def get_loss(image_features, text_features, logit_scale, loss_img, loss_txt):
     return total_loss, acc
 
 
-def load_model(vision_model_config_file, text_model_config_file, resume_path):
+def load_model(vision_model_config_file, text_model_config_file, resume_path=None):
     # model
     with open(vision_model_config_file, 'r') as fv, open(text_model_config_file, 'r') as ft:
         model_info = json.load(fv)
@@ -35,13 +35,15 @@ def load_model(vision_model_config_file, text_model_config_file, resume_path):
             model_info[k] = v
     model_info['use_flash_attention'] = False
     model = CLIP(**model_info)
-
-    # load weight
-    checkpoint = torch.load(resume_path, map_location="cpu")
-    sd = {k: v for k, v in checkpoint["state_dict"].items() if "bert.pooler" not in k}
-    resize_pos_embed(sd, model, prefix="module.")
-    sd2 = {k.replace("module.", ""): v for k, v in sd.items()}
-    model.load_state_dict(sd2)
+    if resume_path is not None:
+        # load weight
+        checkpoint = torch.load(resume_path, map_location="cpu")
+        sd = {k: v for k, v in checkpoint["state_dict"].items() if "bert.pooler" not in k}
+        resize_pos_embed(sd, model, prefix="module.")
+        sd2 = {k.replace("module.", ""): v for k, v in sd.items()}
+        model.load_state_dict(sd2)
+    else:
+        print("no load weight")
     return model, model_info
 
 
@@ -64,5 +66,3 @@ def generate_scheduler_and_optimizer(model, lr, warmup, total_steps, wd):
     )
     scheduler = cosine_lr(optimizer, lr, warmup, total_steps)
     return scheduler, optimizer
-
-
